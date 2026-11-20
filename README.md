@@ -3,6 +3,10 @@
 **Live app: [theintelligencetimes.streamlit.app](https://theintelligencetimes.streamlit.app)** — try `?company=OpenAI` for a shareable, auto-printed edition.
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://theintelligencetimes.streamlit.app)
+[![tests](https://github.com/imkalpx/agentic-rag-ci/actions/workflows/tests.yml/badge.svg)](https://github.com/imkalpx/agentic-rag-ci/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 Four specialist AI agents (Research, Technology, Market, Threat) analyze any company by querying a **Pinecone** vector database with **hybrid retrieval** (semantic + BM25 + Reciprocal Rank Fusion), re-ranking evidence with **Groq LLM-as-judge**, cross-checking each other for conflicts, and producing a fully **source-attributed intelligence brief** with built-in hallucination metrics — typeset as a broadsheet front page in the Economic Times' salmon newsprint.
 
@@ -70,6 +74,27 @@ For **live data** instead of the sample corpus, add free keys for `NEWSAPI_KEY` 
 | `app/newsprint.py` | Typesetting layer — the newsprint stylesheet and pure functions that lay a brief out as a broadsheet. No Streamlit import, so saved briefs render anywhere |
 | `src/export_html.py` | Renders a saved brief to a standalone HTML page (no API calls) — share an edition, archive a back issue, or print to PDF |
 
+## Reuse the retrieval in your own project
+
+The hybrid retrieval layer is independent of the newspaper UI. Once a namespace is ingested, you can call it directly:
+
+```python
+from src.retrieval import hybrid_retrieve, rrf_merge
+
+# semantic (Pinecone) + BM25 -> Reciprocal Rank Fusion -> LLM-as-judge re-rank
+chunks, stats = hybrid_retrieve(
+    ["OpenAI enterprise pricing", "OpenAI revenue growth"],
+    namespace="openai",
+    category="market",        # optional: news | tech | market | threat
+)
+for c in chunks:
+    print(c["rerank_score"], c["source"], c["text"][:80])
+print(stats)  # {'queries': 2, 'candidates': ..., 'retrieval_ms': ..., 'rerank_ms': ...}
+
+# rrf_merge works on any ranked lists of {"id": ...} dicts
+fused = rrf_merge([[{"id": "a"}, {"id": "b"}], [{"id": "b"}, {"id": "c"}]])
+```
+
 ## Reading the paper
 
 ```bash
@@ -111,3 +136,26 @@ Company names become Pinecone namespaces, so spelling is identity: `OpenAI` and 
 ## Disclaimer
 
 The bundled sample corpus is **synthetic** (invented numbers for demo purposes). Use live ingestion for real analysis, and treat outputs as research assistance, not investment advice.
+
+## Roadmap
+
+Ideas where help is welcome. Open an issue to pick one up:
+
+- [ ] Retrieval evaluation set (hit rate / MRR) to compare semantic-only, BM25-only, hybrid and re-ranked results
+- [ ] Pluggable LLM providers (Groq today; OpenAI, Anthropic and local models via a common interface)
+- [ ] More data sources: RSS, Hacker News, SEC filings
+- [ ] Package the hybrid retriever as a standalone `pip install` library
+- [ ] Scheduled re-ingestion so editions stay fresh
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests and good first areas. Run the offline tests with:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+## License
+
+[MIT](LICENSE)
